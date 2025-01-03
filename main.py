@@ -8,9 +8,12 @@ df = pd.read_csv("data.csv")
 
 df["Date"] = df["Date"].replace("-","/", regex=True)
 df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-#df.set_index("Date", inplace=True)
+
 
 df["Close/Last"] = df["Close/Last"].str.replace("$","").astype(float)
+df['Open'] = df['Open'].str.replace('$', '').astype(float)
+df['High'] = df['High'].str.replace('$', '').astype(float)
+df['Low'] = df['Low'].str.replace('$', '').astype(float)
 
 AAPL = df[df["Company"] =="AAPL"]
 SBUX = df[df["Company"]=='SBUX']
@@ -59,3 +62,35 @@ axes[9].set_title('NFLX')
 
 plt.tight_layout()
 plt.show()
+
+def doji(df, threshold=0.001):
+    return abs(df["Close/Last"] - df["Open"]) <= threshold *  df["Open"]
+
+def hammer(df):
+    body = abs(df['Close/Last'] - df['Open'])
+    lower_stick = df[['Open', 'Close/Last']].min(axis=1) - df['Low']
+    upper_stick = df['High'] - df[['Open', 'Close/Last']].max(axis=1)
+    return (lower_stick > body) & ( body> upper_stick)
+def bullish_engulfing(df):
+    prev_open= df["Open"].shift(1)
+    prev_close= df["Close/Last"].shift(1)
+    return (prev_open>prev_close) & (df["Close/Last"]>df["Open"]) & (df['Close/Last'] > prev_open) & (df['Open'] < prev_close)
+
+results = []
+
+for company, group in df.groupby('Company'):
+    group = group.sort_values('Date').reset_index(drop=True)
+
+group['Doji'] = doji(group)
+group['Hammer'] = hammer(group)
+group['Bullish Engulfing'] = bullish_engulfing(group)
+
+patterns = group[group['Doji'] | group['Hammer'] | group['Bullish Engulfing']]
+
+if not patterns.empty:
+        patterns['Company'] = company
+        results.append(patterns)
+
+if results:
+    final_results = pd.concat(results, ignore_index=True)
+    print(final_results)
