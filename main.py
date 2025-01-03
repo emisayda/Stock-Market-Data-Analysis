@@ -94,3 +94,7 @@ if not patterns.empty:
 if results:
     final_results = pd.concat(results, ignore_index=True)
     print(final_results)
+
+
+
+     
